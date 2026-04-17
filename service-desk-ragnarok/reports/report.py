@@ -61,6 +61,45 @@ def evaluate_model(model, X_test, y_test, label_names=None):
     }
 
 
+def check_class_balance(df: pd.DataFrame, target_col: str) -> dict:
+    """
+    Calcula a frequência absoluta e relativa de cada categoria no dataset
+    e identifica se o modelo pode ser viciado em uma classe majoritária.
+    """
+    total = len(df)
+    contagem = df[target_col].value_counts()
+    percentuais = df[target_col].value_counts(normalize=True) * 100
+
+    resultado = {}
+    print("\n" + "="*50)
+    print("Diagnóstico de Viés (Balanceamento de Classes)")
+    print("="*50)
+    for categoria in contagem.index:
+        absoluto = contagem[categoria]
+        relativo = percentuais[categoria]
+        resultado[categoria] = {"absoluto": absoluto, "percentual": relativo}
+        print(f"  {categoria:<20} {absoluto:>5} amostras  ({relativo:.1f}%)")
+
+    # Identifica possível viés
+    max_pct = percentuais.max()
+    min_pct = percentuais.min()
+    razao = max_pct / min_pct
+
+    print(f"\n  Classe majoritária: {percentuais.idxmax()} ({max_pct:.1f}%)")
+    print(f"  Classe minoritária: {percentuais.idxmin()} ({min_pct:.1f}%)")
+    print(f"  Razão maior/menor:  {razao:.1f}x")
+
+    if razao >= 5:
+        print("  ⚠️  DESBALANCEAMENTO SEVERO — alto risco de viés.")
+    elif razao >= 2:
+        print("  ⚠️  DESBALANCEAMENTO MODERADO — monitorar métricas por classe.")
+    else:
+        print("  ✅  Dataset razoavelmente balanceado.")
+
+    print("="*50)
+    return resultado
+
+
 if __name__ == "__main__":
     base_dir = Path(__file__).resolve().parent.parent
 
@@ -70,6 +109,9 @@ if __name__ == "__main__":
         raise FileNotFoundError(f"Dados não encontrados em '{data_path}'.")
 
     df = pd.read_csv(data_path)
+
+    # --- Diagnóstico de viés ---
+    check_class_balance(df, "target_category")
 
     # --- Carregar vetorizador ---
     vectorizer_path = base_dir / "models" / "TfidfVectorizer.joblib"
